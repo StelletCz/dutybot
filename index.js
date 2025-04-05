@@ -2,7 +2,7 @@ const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 
 // Načteme token z environmentální proměnné
-const token = process.env.DISCORD_TOKEN;
+const token = process.env.TOKEN;
 
 // Zajistíme, že token je nastaven
 if (!token) {
