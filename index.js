@@ -54,7 +54,47 @@ client.once('ready', async () => {
     // Pošleme zprávu do kanálu
     const dutyMessage = await dutyChannel.send({ embeds: [embed] });
     dutyMessageId = dutyMessage.id; // Uložíme ID zprávy pro pozdější aktualizace
+
+    // Automatická aktualizace každou minutu
+    setInterval(async () => {
+        await updateDutyMessage();
+    }, 60000); // 60000 ms = 1 minuta
 });
+
+async function updateDutyMessage() {
+    // Získání aktuálního data pro footer
+    const currentTime = new Date().toLocaleString();
+
+    // Aktualizace zprávy s novými daty
+    const usersOnDuty = Object.keys(dutyData)
+        .filter(userId => dutyData[userId].status === 'on')
+        .map(userId => {
+            const userData = dutyData[userId];
+            const hoursOnDuty = ((Date.now() - userData.startTime) / (1000 * 60 * 60)).toFixed(2);
+            return `<@${userId}> - Přišel do služby: ${userData.startDate} - Doba ve službě: ${hoursOnDuty}h`;
+        });
+
+    const totalWorkedHours = Object.values(dutyData)
+        .filter(data => data.workedHours)
+        .reduce((sum, data) => sum + data.workedHours, 0);
+
+    // Vytvoří nový embed se staty
+    const updatedEmbed = new EmbedBuilder()
+        .setColor(0x0099FF)
+        .setTitle('📊 ZAMĚSTNANCI')
+        .setDescription('Test')
+        .addFields(
+            { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
+            { name: '⏱️ Odslouženo tento týden:', value: `${totalWorkedHours.toFixed(2)}h` }
+        )
+        .setTimestamp()
+        .setFooter({ text: `Poslední aktualizace: ${currentTime}` }); // Přidání footeru s časem poslední aktualizace
+
+    // Aktualizujeme zprávu
+    const dutyChannel = await client.channels.fetch(dutyChannelId);
+    const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
+    dutyMessage.edit({ embeds: [updatedEmbed] });
+}
 
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isCommand()) return;
@@ -70,7 +110,8 @@ client.on('interactionCreate', async (interaction) => {
                 startDate: new Date().toLocaleString() // Uložíme datum, kdy uživatel začal službu
             };
 
-            await interaction.reply(`${user.tag}, jsi připojen k službě!`);
+            await interaction.reply(`<@${user.id}>, jsi připojen k službě!`);
+
         } else {
             // Pokud je uživatel ve službě, odpojí ho
             if (dutyData[user.id].status === 'on') {
@@ -78,38 +119,13 @@ client.on('interactionCreate', async (interaction) => {
                 dutyData[user.id].status = 'off';
                 dutyData[user.id].workedHours = (dutyData[user.id].workedHours || 0) + hoursWorked;
 
-                await interaction.reply(`${user.tag}, jsi odpojen od služby. Odpracoval/a jsi ${hoursWorked.toFixed(2)} hodin.`);
+                await interaction.reply(`<@${user.id}>, jsi odpojen od služby. Odpracoval/a jsi ${hoursWorked.toFixed(2)} hodin.`);
+
             }
         }
 
-        // Aktualizace zprávy s novými daty
-        const usersOnDuty = Object.keys(dutyData)
-            .filter(userId => dutyData[userId].status === 'on')
-            .map(userId => {
-                const userData = dutyData[userId];
-                const hoursOnDuty = ((Date.now() - userData.startTime) / (1000 * 60 * 60)).toFixed(2);
-                return `<@${userId}> - Přišel do služby: ${userData.startDate} - Doba ve službě: ${hoursOnDuty}h`;
-            });
-
-        const totalWorkedHours = Object.values(dutyData)
-            .filter(data => data.workedHours)
-            .reduce((sum, data) => sum + data.workedHours, 0);
-
-        // Vytvoří nový embed se staty
-        const updatedEmbed = new EmbedBuilder()
-            .setColor(0x0099FF)
-            .setTitle('📊 ZAMĚSTNANCI')
-            .setDescription('Test')
-            .addFields(
-                { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
-                { name: '⏱️ Odslouženo tento týden:', value: `${totalWorkedHours.toFixed(2)}h` }
-            )
-            .setTimestamp();
-
-        // Aktualizujeme zprávu
-        const dutyChannel = await client.channels.fetch(dutyChannelId);
-        const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
-        dutyMessage.edit({ embeds: [updatedEmbed] });
+        // Aktualizace zprávy po interakci
+        await updateDutyMessage();
     }
 });
 
