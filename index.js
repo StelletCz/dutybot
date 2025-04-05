@@ -76,6 +76,15 @@ client.once('ready', async () => {
                 return `<@${userId}> - Naposledy ve službě: ${userData.lastTime} - ${timeInService}`;
             });
 
+        // Generování seznamu pro "Odpracováno tento týden"
+        const workedThisWeek = Object.keys(dutyData)
+            .filter(userId => dutyData[userId].workedHours)
+            .map(userId => {
+                const userData = dutyData[userId];
+                const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
+                return `<@${userId}> - Naposledy ve službě: ${userData.lastTime} | Celkový odpracovaný čas: ${workedTime}`;
+            });
+
         // Celkový čas odsloužený tímto týdnem
         const totalWorkedHours = Object.values(dutyData).filter(data => data.workedHours).reduce((sum, data) => sum + data.workedHours, 0);
 
@@ -86,7 +95,7 @@ client.once('ready', async () => {
             .setDescription('TEST')
             .addFields(
                 { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
-                { name: '⏱️ Odpracováno tento týden:', value: `${totalWorkedHours.toFixed(2)}h` }
+                { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
             )
             .setTimestamp()
             .setFooter({
@@ -134,6 +143,15 @@ client.on('interactionCreate', async (interaction) => {
                 return `<@${userId}> - Naposledy ve službě: ${userData.lastTime} - ${timeInService}`;
             });
 
+        // Generování seznamu pro "Odpracováno tento týden"
+        const workedThisWeek = Object.keys(dutyData)
+            .filter(userId => dutyData[userId].workedHours)
+            .map(userId => {
+                const userData = dutyData[userId];
+                const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
+                return `<@${userId}> - Naposledy ve službě: ${userData.lastTime} | Celkový odpracovaný čas: ${workedTime}`;
+            });
+
         // Celkový čas odsloužený tímto týdnem
         const totalWorkedHours = Object.values(dutyData).filter(data => data.workedHours).reduce((sum, data) => sum + data.workedHours, 0);
 
@@ -144,7 +162,7 @@ client.on('interactionCreate', async (interaction) => {
             .setDescription('TEST')
             .addFields(
                 { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
-                { name: '⏱️ Odpracováno tento týden:', value: `${totalWorkedHours.toFixed(2)}h` }
+                { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
             )
             .setTimestamp()
             .setFooter({
