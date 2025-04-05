@@ -7,7 +7,7 @@ const client = new Client({
         GatewayIntentBits.Guilds,              // Pro připojení ke guildám (servery)
         GatewayIntentBits.GuildMessages,       // Pro čtení zpráv v kanálech
         GatewayIntentBits.MessageReactions,    // Pro sledování reakcí
-        GatewayIntentBits.MessageContent,      // Pro získávání obsahu zpráv (pro nový Discord.js)
+        GatewayIntentBits.MessageContent,      // Pro získávání obsahu zpráv (nutné pro nový Discord.js)
     ]
 });
 
@@ -18,8 +18,10 @@ const token = 'MTM1ODE4Mzk1NDM2NDIzOTk1Mg.Gs2QZ0.QjiAo4m0Ow_op_r9016By3D95O07OGl
 
 const dutyChannelId = '1358183328104321223'; // ID kanálu, kde bude stat panel (získáš ID kanálu kliknutím pravým tlačítkem na kanál > Kopírovat ID)
 let dutyMessageId = null;
+console.log('Discord.js version:', require('discord.js').version);
 
 client.once('ready', async () => {
+    console.log('Discord.js version:', require('discord.js').version);
     console.log(`Bot je přihlášen jako ${client.user.tag}`);
 
     // Získání kanálu pro status zprávu
