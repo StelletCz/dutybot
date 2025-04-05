@@ -33,7 +33,7 @@ client.once('ready', async () => {
     const embed = new EmbedBuilder()
         .setColor('#ffcc00')
         .setTitle('📊 ZAMĚSTNANCI')
-        .setDescription('✅ Reaguj ✅ pro nástup do služby\n❌ Reaguj ❌ pro ukončení služby')
+        .setDescription('✅   Reaguj   ✅   pro nástup do služby\n❌   Reaguj   ❌   pro ukončení služby')
         .addFields(
             { name: '✅ Ve službě:', value: 'Žádní uživatelé jsou ve službě' },
             { name: '⏱️ Odpracováno tento týden:', value: '0h 0m' }
@@ -76,7 +76,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
     const updatedEmbed = new EmbedBuilder()
         .setColor(0x0099FF)
         .setTitle('📊 ZAMĚSTNANCI')
-        .setDescription('✅ Reaguj ✅ pro nástup do služby\n❌ Reaguj ❌ pro ukončení služby')
+        .setDescription('✅   Reaguj   ✅   pro nástup do služby\n❌   Reaguj   ❌   pro ukončení služby')
         .addFields(
             { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
             { name: '⏱️ Odslouženo tento týden:', value: `${totalWorkedHours.toFixed(2)}h` }
