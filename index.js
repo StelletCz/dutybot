@@ -1,5 +1,5 @@
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
-const fs = require('fs');
+require('dotenv').config();
+const { Client, GatewayIntentBits } = require('discord.js');
 
 // Načteme token z environmentální proměnné
 const token = process.env.TOKEN;
@@ -12,12 +12,8 @@ if (!token) {
 
 // Nastavení bota
 const client = new Client({
-    intents: [
-      GatewayIntentBits.Guilds,
-      GatewayIntentBits.GuildMessages,
-      GatewayIntentBits.MessageReactions,
-    ],
-  });
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+});
 
 const dutyData = {}; // Pro uložení dat o uživatelských hodinách
 
