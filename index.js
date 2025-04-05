@@ -12,7 +12,7 @@ if (!token) {
 
 // Nastavení bota
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.MessageReactions]
 });
 
 const dutyData = {}; // Pro uložení dat o uživatelských hodinách
