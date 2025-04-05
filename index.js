@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 // Načteme token z environmentální proměnné
 const token = process.env.TOKEN;
@@ -31,7 +31,7 @@ client.once('ready', async () => {
 
     // Vytvoření embed zprávy
     const embed = new EmbedBuilder()
-        .setColor(0x0099FF)
+        .setColor('#ffcc00')
         .setTitle('📊 ZAMĚSTNANCI')
         .setDescription('✅ Reaguj ✅ pro nástup do služby\n❌ Reaguj ❌ pro ukončení služby')
         .addFields(
