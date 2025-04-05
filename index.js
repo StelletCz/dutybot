@@ -13,12 +13,11 @@ if (!token) {
 // Nastavení bota
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds, 
-        GatewayIntentBits.GuildMessages, 
-        GatewayIntentBits.MessageReactions,
-        GatewayIntentBits.MessageContent // Pokud používáš čtení obsahu zpráv
-    ]
-});
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageReactions,
+    ],
+  });
 
 const dutyData = {}; // Pro uložení dat o uživatelských hodinách
 
