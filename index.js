@@ -1,27 +1,34 @@
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 
+// Načteme token z environmentální proměnné
+const token = process.env.DISCORD_TOKEN;
+
+// Zajistíme, že token je nastaven
+if (!token) {
+    console.error("Token nebyl nalezen v environmentálních proměnných.");
+    process.exit(1); // Zastavíme běh, pokud není token
+}
+
 // Nastavení bota
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds,              // Pro připojení ke guildám (servery)
-        GatewayIntentBits.GuildMessages,       // Pro čtení zpráv v kanálech
-        GatewayIntentBits.MessageReactions,    // Pro sledování reakcí
-        GatewayIntentBits.MessageContent,      // Pro získávání obsahu zpráv (nutné pro nový Discord.js)
+        GatewayIntentBits.Guilds, 
+        GatewayIntentBits.GuildMessages, 
+        GatewayIntentBits.MessageReactions,
+        GatewayIntentBits.MessageContent // Pokud používáš čtení obsahu zpráv
     ]
 });
 
 const dutyData = {}; // Pro uložení dat o uživatelských hodinách
 
-// Tady vlož svůj token
-const token = 'MTM1ODE4Mzk1NDM2NDIzOTk1Mg.Gs2QZ0.QjiAo4m0Ow_op_r9016By3D95O07OGlHBYhg0g';
+// ID kanálu, kde bude stat panel (získáš ID kanálu kliknutím pravým tlačítkem na kanál > Kopírovat ID)
+const dutyChannelId = '1358183328104321223';
 
-const dutyChannelId = '1358183328104321223'; // ID kanálu, kde bude stat panel (získáš ID kanálu kliknutím pravým tlačítkem na kanál > Kopírovat ID)
+// ID zprávy, kterou bot vytvoří (tu bude pravidelně aktualizovat)
 let dutyMessageId = null;
-console.log('Discord.js version:', require('discord.js').version);
 
 client.once('ready', async () => {
-    console.log('Discord.js version:', require('discord.js').version);
     console.log(`Bot je přihlášen jako ${client.user.tag}`);
 
     // Získání kanálu pro status zprávu

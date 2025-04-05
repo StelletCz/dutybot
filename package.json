@@ -1,12 +1,20 @@
 {
-  "name": "dutybot",
+  "name": "duty-bot",
   "version": "1.0.0",
+  "description": "A bot for tracking duty hours in Discord",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
+  "keywords": [
+    "discord",
+    "bot",
+    "duty",
+    "hours"
+  ],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "discord.js": "^14.7.1",
-    "dotenv": "^16.0.3"
+    "discord.js": "^14.9.0"
   }
 }
