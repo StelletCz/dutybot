@@ -1,5 +1,4 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 // Načteme token z environmentální proměnné
 const token = process.env.TOKEN;
@@ -10,9 +9,13 @@ if (!token) {
     process.exit(1); // Zastavíme běh, pokud není token
 }
 
-// Nastavení bota
+// Nastavení bota s potřebnými intenty
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.MessageReactions]
+    intents: [
+        GatewayIntentBits.Guilds,              // Základní pro práci s guildami
+        GatewayIntentBits.GuildMessages,       // Pro čtení zpráv v kanálech
+        GatewayIntentBits.MessageContent       // Pro čtení obsahu zpráv
+    ]
 });
 
 const dutyData = {}; // Pro uložení dat o uživatelských hodinách
@@ -26,14 +29,22 @@ let dutyMessageId = null;
 client.once('ready', async () => {
     console.log(`Bot je přihlášen jako ${client.user.tag}`);
 
+    // Vytvoření slash příkazu
+    const data = new SlashCommandBuilder()
+        .setName('sluzba')
+        .setDescription('Připojit/odpojit se od služby');
+
+    // Registrace příkazu u Discord API
+    await client.application.commands.create(data);
+
     // Získání kanálu pro status zprávu
     const dutyChannel = await client.channels.fetch(dutyChannelId);
 
     // Vytvoření embed zprávy
     const embed = new EmbedBuilder()
-        .setColor('#ffcc00')
+        .setColor(0x0099FF)
         .setTitle('📊 ZAMĚSTNANCI')
-        .setDescription('✅   Reaguj   ✅   pro nástup do služby\n❌   Reaguj   ❌   pro ukončení služby')
+        .setDescription('✅ Reaguj ✅ pro nástup do služby\n❌ Reaguj ❌ pro ukončení služby')
         .addFields(
             { name: '✅ Ve službě:', value: 'Žádní uživatelé jsou ve službě' },
             { name: '⏱️ Odpracováno tento týden:', value: '0h 0m' }
@@ -43,56 +54,50 @@ client.once('ready', async () => {
     // Pošleme zprávu do kanálu
     const dutyMessage = await dutyChannel.send({ embeds: [embed] });
     dutyMessageId = dutyMessage.id; // Uložíme ID zprávy pro pozdější aktualizace
-
-    // Přidáme reakce (emoji ✅ a ❌)
-    await dutyMessage.react('✅');
-    await dutyMessage.react('❌');
 });
 
-client.on('messageReactionAdd', async (reaction, user) => {
-    // Pokud je to bot, ignoruj reakce
-    if (user.bot) return;
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isCommand()) return;
 
-    // Pokud je reakce na zprávu, která není správná, ignoruj
-    if (reaction.message.id !== dutyMessageId) return;
+    const { commandName, user } = interaction;
 
-    console.log(`Reakce přidána: ${reaction.emoji.name} od uživatele: ${user.tag}`);
+    if (commandName === 'sluzba') {
+        // Pokud uživatel není ve službě, připojí ho
+        if (!dutyData[user.id] || dutyData[user.id].status === 'off') {
+            dutyData[user.id] = { status: 'on', startTime: Date.now() };
 
-    // Získání kanálu pro aktualizaci
-    const dutyChannel = await client.channels.fetch(dutyChannelId);
-    const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
+            await interaction.reply(`Ahoj ${user.tag}, jsi připojen k službě!`);
+        } else {
+            // Pokud je uživatel ve službě, odpojí ho
+            if (dutyData[user.id].status === 'on') {
+                const hoursWorked = (Date.now() - dutyData[user.id].startTime) / (1000 * 60 * 60); // Počet odpracovaných hodin
+                dutyData[user.id].status = 'off';
+                dutyData[user.id].workedHours = (dutyData[user.id].workedHours || 0) + hoursWorked;
 
-    if (reaction.emoji.name === '✅') {
-        // Uživatel jde "on duty"
-        dutyData[user.id] = { status: 'on', startTime: Date.now() };
-        console.log(`${user.tag} nastoupil do služby.`);
-    } else if (reaction.emoji.name === '❌') {
-        // Uživatel jde "off duty"
-        if (dutyData[user.id] && dutyData[user.id].status === 'on') {
-            const hoursWorked = (Date.now() - dutyData[user.id].startTime) / (1000 * 60 * 60); // Počet odpracovaných hodin
-            dutyData[user.id].status = 'off';
-            dutyData[user.id].workedHours = (dutyData[user.id].workedHours || 0) + hoursWorked;
-            console.log(`${user.tag} ukončil službu. Odpracováno: ${hoursWorked.toFixed(2)}h`);
+                await interaction.reply(`Ahoj ${user.tag}, jsi odpojen od služby. Odpracoval/a jsi ${hoursWorked.toFixed(2)} hodin.`);
+            }
         }
+
+        // Aktualizace zprávy s novými daty
+        const usersOnDuty = Object.keys(dutyData).filter(userId => dutyData[userId].status === 'on').map(userId => `<@${userId}>`);
+        const totalWorkedHours = Object.values(dutyData).filter(data => data.workedHours).reduce((sum, data) => sum + data.workedHours, 0);
+
+        // Vytvoří nový embed se staty
+        const updatedEmbed = new EmbedBuilder()
+            .setColor(0x0099FF)
+            .setTitle('📊 ZAMĚSTNANCI')
+            .setDescription('✅ Reaguj ✅ pro nástup do služby\n❌ Reaguj ❌ pro ukončení služby')
+            .addFields(
+                { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
+                { name: '⏱️ Odslouženo tento týden:', value: `${totalWorkedHours.toFixed(2)}h` }
+            )
+            .setTimestamp();
+
+        // Aktualizujeme zprávu
+        const dutyChannel = await client.channels.fetch(dutyChannelId);
+        const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
+        dutyMessage.edit({ embeds: [updatedEmbed] });
     }
-
-    // Aktualizace zprávy s novými daty
-    const usersOnDuty = Object.keys(dutyData).filter(userId => dutyData[userId].status === 'on').map(userId => `<@${userId}>`);
-    const totalWorkedHours = Object.values(dutyData).filter(data => data.workedHours).reduce((sum, data) => sum + data.workedHours, 0);
-
-    // Vytvoří nový embed se staty
-    const updatedEmbed = new EmbedBuilder()
-        .setColor(0x0099FF)
-        .setTitle('📊 ZAMĚSTNANCI')
-        .setDescription('✅ Reaguj ✅ pro nástup do služby\n❌ Reaguj ❌ pro ukončení služby')
-        .addFields(
-            { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
-            { name: '⏱️ Odslouženo tento týden:', value: `${totalWorkedHours.toFixed(2)}h` }
-        )
-        .setTimestamp();
-
-    // Aktualizujeme zprávu
-    await dutyMessage.edit({ embeds: [updatedEmbed] });
 });
 
 client.login(token);
