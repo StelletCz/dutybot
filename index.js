@@ -2,17 +2,21 @@ const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 
 // Nastavení bota
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageReactions] });
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,              // Pro připojení ke guildám (servery)
+        GatewayIntentBits.GuildMessages,       // Pro čtení zpráv v kanálech
+        GatewayIntentBits.MessageReactions,    // Pro sledování reakcí
+        GatewayIntentBits.MessageContent,      // Pro získávání obsahu zpráv (pro nový Discord.js)
+    ]
+});
 
 const dutyData = {}; // Pro uložení dat o uživatelských hodinách
 
 // Tady vlož svůj token
 const token = 'MTM1ODE4Mzk1NDM2NDIzOTk1Mg.Gs2QZ0.QjiAo4m0Ow_op_r9016By3D95O07OGlHBYhg0g';
 
-// ID kanálu, kde bude stat panel (získáš ID kanálu kliknutím pravým tlačítkem na kanál > Kopírovat ID)
-const dutyChannelId = '1358183328104321223';
-
-// ID zprávy, kterou bot vytvoří (tu bude pravidelně aktualizovat)
+const dutyChannelId = '1358183328104321223'; // ID kanálu, kde bude stat panel (získáš ID kanálu kliknutím pravým tlačítkem na kanál > Kopírovat ID)
 let dutyMessageId = null;
 
 client.once('ready', async () => {
