@@ -50,7 +50,13 @@ client.once('ready', async () => {
 });
 
 client.on('messageReactionAdd', async (reaction, user) => {
-    if (reaction.message.id !== dutyMessageId || user.bot) return; // Ignoruj boty a zprávy, které nejsou od našeho panelu
+    // Pokud je to bot, ignoruj reakce
+    if (user.bot) return;
+
+    // Pokud je reakce na zprávu, která není správná, ignoruj
+    if (reaction.message.id !== dutyMessageId) return;
+
+    console.log(`Reakce přidána: ${reaction.emoji.name} od uživatele: ${user.tag}`);
 
     // Získání kanálu pro aktualizaci
     const dutyChannel = await client.channels.fetch(dutyChannelId);
@@ -59,12 +65,14 @@ client.on('messageReactionAdd', async (reaction, user) => {
     if (reaction.emoji.name === '✅') {
         // Uživatel jde "on duty"
         dutyData[user.id] = { status: 'on', startTime: Date.now() };
+        console.log(`${user.tag} nastoupil do služby.`);
     } else if (reaction.emoji.name === '❌') {
         // Uživatel jde "off duty"
         if (dutyData[user.id] && dutyData[user.id].status === 'on') {
             const hoursWorked = (Date.now() - dutyData[user.id].startTime) / (1000 * 60 * 60); // Počet odpracovaných hodin
             dutyData[user.id].status = 'off';
             dutyData[user.id].workedHours = (dutyData[user.id].workedHours || 0) + hoursWorked;
+            console.log(`${user.tag} ukončil službu. Odpracováno: ${hoursWorked.toFixed(2)}h`);
         }
     }
 
@@ -76,7 +84,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
     const updatedEmbed = new EmbedBuilder()
         .setColor(0x0099FF)
         .setTitle('📊 ZAMĚSTNANCI')
-        .setDescription('✅   Reaguj   ✅   pro nástup do služby\n❌   Reaguj   ❌   pro ukončení služby')
+        .setDescription('✅ Reaguj ✅ pro nástup do služby\n❌ Reaguj ❌ pro ukončení služby')
         .addFields(
             { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
             { name: '⏱️ Odslouženo tento týden:', value: `${totalWorkedHours.toFixed(2)}h` }
@@ -84,7 +92,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
         .setTimestamp();
 
     // Aktualizujeme zprávu
-    dutyMessage.edit({ embeds: [updatedEmbed] });
+    await dutyMessage.edit({ embeds: [updatedEmbed] });
 });
 
 client.login(token);
