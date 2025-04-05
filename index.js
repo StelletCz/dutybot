@@ -73,7 +73,7 @@ client.once('ready', async () => {
             .map(userId => {
                 const userData = dutyData[userId];
                 const timeInService = formatTime(Date.now() - userData.startTime); // Čas ve službě v HH:MM:SS
-                return `<@${userId}> - Naposledy ve službě: ${userData.lastTime} - ${timeInService}`;
+                return `<@${userId}> - **Ve službě od:** ${userData.lastTime} | **Čas ve službě:** ${timeInService}`;
             });
 
         // Generování seznamu pro "Odpracováno tento týden"
@@ -82,7 +82,7 @@ client.once('ready', async () => {
             .map(userId => {
                 const userData = dutyData[userId];
                 const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
-                return `<@${userId}> - Naposledy ve službě: ${userData.lastTime} | Celkový odpracovaný čas: ${workedTime}`;
+                return `<@${userId}> - **Naposledy ve službě:** ${userData.lastTime} | **Odpracovaný čas:** ${workedTime}`;
             });
 
         // Celkový čas odsloužený tímto týdnem
@@ -140,7 +140,7 @@ client.on('interactionCreate', async (interaction) => {
             .map(userId => {
                 const userData = dutyData[userId];
                 const timeInService = formatTime(Date.now() - userData.startTime); // Čas ve službě v HH:MM:SS
-                return `<@${userId}> - Naposledy ve službě: ${userData.lastTime} - ${timeInService}`;
+                return `<@${userId}> - **Ve službě od:** ${userData.lastTime} | **Čas ve službě:** ${timeInService}`;
             });
 
         // Generování seznamu pro "Odpracováno tento týden"
@@ -149,7 +149,7 @@ client.on('interactionCreate', async (interaction) => {
             .map(userId => {
                 const userData = dutyData[userId];
                 const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
-                return `<@${userId}> - Naposledy ve službě: ${userData.lastTime} | Celkový odpracovaný čas: ${workedTime}`;
+                return `<@${userId}> - **Naposledy ve službě:** ${userData.lastTime} | **Odpracovaný čas:** ${workedTime}`;
             });
 
         // Celkový čas odsloužený tímto týdnem
