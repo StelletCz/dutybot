@@ -1,4 +1,5 @@
 const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const mysql = require('mysql2');
 
 // Načteme token z environmentální proměnné
 const token = process.env.TOKEN;
@@ -18,12 +19,24 @@ const client = new Client({
     ]
 });
 
-const dutyData = {}; // Pro uložení dat o uživatelských hodinách
+// Připojení k MySQL databázi
+const db = mysql.createConnection({
+    host: 'sql107.infinityfree.com', // Hostitel MySQL
+    user: 'if0_38682377', // Uživatelské jméno
+    password: 'kokot9511', // Heslo
+    database: 'if0_38682377_dutybot' // Název databáze
+});
 
-// ID kanálu, kde bude stat panel (získáš ID kanálu kliknutím pravým tlačítkem na kanál > Kopírovat ID)
+db.connect((err) => {
+    if (err) {
+        console.error('Chyba při připojení k databázi:', err);
+        process.exit(1); // Pokud není možné se připojit, zastavíme běh
+    }
+    console.log('Připojeno k databázi MySQL');
+});
+
+// ID kanálu, kde bude stat panel
 const dutyChannelId = '1358183328104321223';
-
-// ID zprávy, kterou bot vytvoří (tu bude pravidelně aktualizovat)
 let dutyMessageId = null;
 
 // Funkce pro převod času na HH:MM:SS
@@ -68,42 +81,52 @@ client.once('ready', async () => {
         const dutyChannel = await client.channels.fetch(dutyChannelId);
         const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
 
-        // Generování seznamu lidí, kteří jsou ve službě, s jejich časy
-        const usersOnDuty = Object.keys(dutyData).filter(userId => dutyData[userId].status === 'on')
-            .map(userId => {
-                const userData = dutyData[userId];
+        // Načítání uživatelů ve službě z databáze
+        db.query('SELECT * FROM users WHERE status = "on"', (err, results) => {
+            if (err) {
+                console.error('Chyba při načítání dat z databáze:', err);
+                return;
+            }
+
+            // Generování seznamu lidí, kteří jsou ve službě, s jejich časy
+            const usersOnDuty = results.map(userData => {
                 const timeInService = formatTime(Date.now() - userData.startTime); // Čas ve službě v HH:MM:SS
-                return `<@${userId}> - **Ve službě od:** ${userData.lastTime} | **Čas ve službě:** ${timeInService}`;
+                return `<@${userData.id}> - **Ve službě od:** ${userData.lastTime} | **Čas ve službě:** ${timeInService}`;
             });
 
-        // Generování seznamu pro "Odpracováno tento týden"
-        const workedThisWeek = Object.keys(dutyData)
-            .filter(userId => dutyData[userId].workedHours)
-            .map(userId => {
-                const userData = dutyData[userId];
-                const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
-                return `<@${userId}> - **Naposledy ve službě:** ${userData.lastTime} | **Odpracovaný čas:** ${workedTime}`;
+            // Generování seznamu pro "Odpracováno tento týden"
+            db.query('SELECT * FROM users WHERE workedHours > 0', (err, results) => {
+                if (err) {
+                    console.error('Chyba při načítání odpracovaných hodin:', err);
+                    return;
+                }
+
+                const workedThisWeek = results.map(userData => {
+                    const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
+                    return `<@${userData.id}> - **Naposledy ve službě:** ${userData.lastTime} | **Odpracovaný čas:** ${workedTime}`;
+                });
+
+                // Celkový čas odsloužený tímto týdnem
+                const totalWorkedHours = results.reduce((sum, userData) => sum + userData.workedHours, 0);
+
+                // Vytvoří nový embed se staty
+                const updatedEmbed = new EmbedBuilder()
+                    .setColor(0x0099FF)
+                    .setTitle('📊 ZAMĚSTNANCI')
+                    .setDescription('TEST')
+                    .addFields(
+                        { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
+                        { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
+                    )
+                    .setTimestamp()
+                    .setFooter({
+                        text: `Aktualizováno: ${new Date().toLocaleString('cs-CZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' })}`
+                    });
+
+                // Aktualizujeme zprávu
+                dutyMessage.edit({ embeds: [updatedEmbed] });
             });
-
-        // Celkový čas odsloužený tímto týdnem
-        const totalWorkedHours = Object.values(dutyData).filter(data => data.workedHours).reduce((sum, data) => sum + data.workedHours, 0);
-
-        // Vytvoří nový embed se staty
-        const updatedEmbed = new EmbedBuilder()
-            .setColor(0x0099FF)
-            .setTitle('📊 ZAMĚSTNANCI')
-            .setDescription('TEST')
-            .addFields(
-                { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
-                { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
-            )
-            .setTimestamp()
-            .setFooter({
-                text: `Aktualizováno: ${new Date().toLocaleString('cs-CZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' })}`
-            });
-
-        // Aktualizujeme zprávu
-        dutyMessage.edit({ embeds: [updatedEmbed] });
+        });
     }, 60000); // 60 000 ms = 1 minuta
 });
 
@@ -112,67 +135,73 @@ client.on('interactionCreate', async (interaction) => {
 
     const { commandName, user } = interaction;
 
-    if (commandName === 'sluzba') {
-        // Pokud uživatel není ve službě, připojí ho
-        if (!dutyData[user.id] || dutyData[user.id].status === 'off') {
-            dutyData[user.id] = { 
-                status: 'on', 
-                startTime: Date.now(), 
-                lastTime: new Date().toLocaleString('cs-CZ', { timeZone: 'Europe/Prague' }) 
-            };
+    // Ověření, že uživatel má správnou roli
+    const requiredRoleId = '1354526121005154393';
+    const member = await interaction.guild.members.fetch(user.id);
 
-            await interaction.reply(`<@${user.id}>, jsi připojen k službě!`);
-        } else {
-            // Pokud je uživatel ve službě, odpojí ho
-            if (dutyData[user.id].status === 'on') {
-                const hoursWorked = Date.now() - dutyData[user.id].startTime; // Počet odpracovaných milisekund
+    if (!member.roles.cache.has(requiredRoleId)) {
+        return interaction.reply({
+            content: 'Nemáš dostatečná práva pro použití tohoto příkazu.',
+            ephemeral: true // Zobrazí tuto zprávu pouze uživateli
+        });
+    }
+
+    if (commandName === 'sluzba') {
+        // Načítání uživatele z databáze
+        db.query('SELECT * FROM users WHERE id = ?', [user.id], async (err, results) => {
+            if (err) {
+                console.error('Chyba při načítání uživatele z databáze:', err);
+                return;
+            }
+
+            if (results.length === 0 || results[0].status === 'off') {
+                // Pokud uživatel není ve službě, připojí ho
+                db.query('INSERT INTO users (id, status, startTime, lastTime) VALUES (?, "on", ?, ?)', [user.id, Date.now(), new Date().toLocaleString('cs-CZ', { timeZone: 'Europe/Prague' })]);
+
+                await interaction.reply(`<@${user.id}>, jsi připojen k službě!`);
+            } else {
+                // Pokud je uživatel ve službě, odpojí ho
+                const hoursWorked = Date.now() - results[0].startTime; // Počet odpracovaných milisekund
                 const formattedWorkedTime = formatTime(hoursWorked); // Převede milisekundy na HH:MM:SS
-                dutyData[user.id].status = 'off';
-                dutyData[user.id].workedHours = (dutyData[user.id].workedHours || 0) + (hoursWorked / (1000 * 60 * 60)); // Přidání k celkovému odpracovanému času
-                dutyData[user.id].lastTime = new Date().toLocaleString('cs-CZ', { timeZone: 'Europe/Prague' });
+                db.query('UPDATE users SET status = "off", workedHours = workedHours + ? WHERE id = ?', [hoursWorked / (1000 * 60 * 60), user.id]);
 
                 await interaction.reply(`<@${user.id}>, jsi odpojen od služby. Odpracoval/a jsi ${formattedWorkedTime}.`);
             }
-        }
 
-        // Generování seznamu lidí, kteří jsou ve službě, s jejich časy
-        const usersOnDuty = Object.keys(dutyData).filter(userId => dutyData[userId].status === 'on')
-            .map(userId => {
-                const userData = dutyData[userId];
+            // Generování seznamu lidí, kteří jsou ve službě, s jejich časy
+            const usersOnDuty = results.map(userData => {
                 const timeInService = formatTime(Date.now() - userData.startTime); // Čas ve službě v HH:MM:SS
-                return `<@${userId}> - **Ve službě od:** ${userData.lastTime} | **Čas ve službě:** ${timeInService}`;
+                return `<@${userData.id}> - **Ve službě od:** ${userData.lastTime} | **Čas ve službě:** ${timeInService}`;
             });
 
-        // Generování seznamu pro "Odpracováno tento týden"
-        const workedThisWeek = Object.keys(dutyData)
-            .filter(userId => dutyData[userId].workedHours)
-            .map(userId => {
-                const userData = dutyData[userId];
+            // Generování seznamu pro "Odpracováno tento týden"
+            const workedThisWeek = results.map(userData => {
                 const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
-                return `<@${userId}> - **Naposledy ve službě:** ${userData.lastTime} | **Odpracovaný čas:** ${workedTime}`;
+                return `<@${userData.id}> - **Naposledy ve službě:** ${userData.lastTime} | **Odpracovaný čas:** ${workedTime}`;
             });
 
-        // Celkový čas odsloužený tímto týdnem
-        const totalWorkedHours = Object.values(dutyData).filter(data => data.workedHours).reduce((sum, data) => sum + data.workedHours, 0);
+            // Celkový čas odsloužený tímto týdnem
+            const totalWorkedHours = results.reduce((sum, userData) => sum + userData.workedHours, 0);
 
-        // Vytvoří nový embed se staty
-        const updatedEmbed = new EmbedBuilder()
-            .setColor(0x0099FF)
-            .setTitle('📊 ZAMĚSTNANCI')
-            .setDescription('TEST')
-            .addFields(
-                { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
-                { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
-            )
-            .setTimestamp()
-            .setFooter({
-                text: `Aktualizováno: ${new Date().toLocaleString('cs-CZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' })}`
-            });
+            // Vytvoří nový embed se staty
+            const updatedEmbed = new EmbedBuilder()
+                .setColor(0x0099FF)
+                .setTitle('📊 ZAMĚSTNANCI')
+                .setDescription('TEST')
+                .addFields(
+                    { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
+                    { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
+                )
+                .setTimestamp()
+                .setFooter({
+                    text: `Aktualizováno: ${new Date().toLocaleString('cs-CZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' })}`
+                });
 
-        // Aktualizujeme zprávu
-        const dutyChannel = await client.channels.fetch(dutyChannelId);
-        const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
-        dutyMessage.edit({ embeds: [updatedEmbed] });
+            // Aktualizujeme zprávu
+            const dutyChannel = await client.channels.fetch(dutyChannelId);
+            const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
+            dutyMessage.edit({ embeds: [updatedEmbed] });
+        });
     }
 });
 
