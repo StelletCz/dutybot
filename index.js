@@ -150,7 +150,7 @@ client.on('interactionCreate', async (interaction) => {
     const requiredRoleId = '1354526121005154394'; // Změněné ID na správnou roli
     const member = await interaction.guild.members.fetch(user.id);
 
-    if (!member.roles.cache.has(requiredRoleId)) {
+    if (!member.roles.cache.has(requiredRoleId) && interaction.options.getSubcommand() === 'reset') {
         return interaction.reply({
             content: 'Nemáš dostatečná práva pro použití tohoto příkazu.',
             ephemeral: true // Zobrazí tuto zprávu pouze uživateli
