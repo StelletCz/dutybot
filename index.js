@@ -71,12 +71,12 @@ client.once('ready', async () => {
     // **Načteme uživatele ihned po startu** a zobrazíme je
     const usersOnDuty = Object.values(users).filter(userData => userData.status === 'on').map(userData => {
         const timeInService = formatTime(Date.now() - userData.startTime); // Čas ve službě v HH:MM:SS
-        return `<@${userData.id}> - **Ve službě od:** ${userData.lastTime} | **Čas ve službě:** ${timeInService}`;
+        return `<@${userData.id}> - **Ve službě od:** ${userData.lastTime} × **Čas ve službě:** ${timeInService}`;
     });
 
     const workedThisWeek = Object.values(users).map(userData => {
         const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
-        return `<@${userData.id}> - **Naposledy ve službě:** ${userData.lastTime} | **Odpracovaný čas:** ${workedTime}`;
+        return `<@${userData.id}> - **Naposledy ve službě:** ${userData.lastTime} × **Odpracovaný čas:** ${workedTime}`;
     });
 
     // Celkový čas odsloužený tímto týdnem
@@ -110,13 +110,13 @@ client.once('ready', async () => {
         // Generování seznamu lidí, kteří jsou ve službě, s jejich časy
         const usersOnDuty = Object.values(users).filter(userData => userData.status === 'on').map(userData => {
             const timeInService = formatTime(Date.now() - userData.startTime); // Čas ve službě v HH:MM:SS
-            return `<@${userData.id}> - **Ve službě od:** ${userData.lastTime} | **Čas ve službě:** ${timeInService}`;
+            return `<@${userData.id}> - **Ve službě od:** ${userData.lastTime} × **Čas ve službě:** ${timeInService}`;
         });
 
         // Generování seznamu pro "Odpracováno tento týden"
         const workedThisWeek = Object.values(users).map(userData => {
             const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
-            return `<@${userData.id}> - **Naposledy ve službě:** ${userData.lastTime} | **Odpracovaný čas:** ${workedTime}`;
+            return `<@${userData.id}> - **Naposledy ve službě:** ${userData.lastTime} × **Odpracovaný čas:** ${workedTime}`;
         });
 
         // Celkový čas odsloužený tímto týdnem
@@ -198,12 +198,12 @@ client.on('interactionCreate', async (interaction) => {
         // **Uživatelská data aktualizována hned po příkazu /sluzba**
         const usersOnDuty = Object.values(users).filter(userData => userData.status === 'on').map(userData => {
             const timeInService = formatTime(Date.now() - userData.startTime); // Čas ve službě v HH:MM:SS
-            return `<@${userData.id}> - **Ve službě od:** ${userData.lastTime} | **Čas ve službě:** ${timeInService}`;
+            return `<@${userData.id}> - **Ve službě od:** ${userData.lastTime} × **Čas ve službě:** ${timeInService}`;
         });
 
         const workedThisWeek = Object.values(users).map(userData => {
             const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
-            return `<@${userData.id}> - **Naposledy ve službě:** ${userData.lastTime} | **Odpracovaný čas:** ${workedTime}`;
+            return `<@${userData.id}> - **Naposledy ve službě:** ${userData.lastTime} × **Odpracovaný čas:** ${workedTime}`;
         });
 
         const totalWorkedHours = Object.values(users).reduce((sum, userData) => sum + userData.workedHours, 0);
