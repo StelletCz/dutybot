@@ -63,6 +63,37 @@ client.once('ready', async () => {
     const dutyMessage = await dutyChannel.send({ embeds: [embed] });
     dutyMessageId = dutyMessage.id; // Uložíme ID zprávy pro pozdější aktualizace
 
+    // **Načteme uživatele ihned po startu** a zobrazíme je
+    const usersOnDuty = Object.values(users).filter(userData => userData.status === 'on').map(userData => {
+        const timeInService = formatTime(Date.now() - userData.startTime); // Čas ve službě v HH:MM:SS
+        return `<@${userData.id}> - **Ve službě od:** ${userData.lastTime} | **Čas ve službě:** ${timeInService}`;
+    });
+
+    const workedThisWeek = Object.values(users).map(userData => {
+        const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
+        return `<@${userData.id}> - **Naposledy ve službě:** ${userData.lastTime} | **Odpracovaný čas:** ${workedTime}`;
+    });
+
+    // Celkový čas odsloužený tímto týdnem
+    const totalWorkedHours = Object.values(users).reduce((sum, userData) => sum + userData.workedHours, 0);
+
+    // Vytvoří nový embed se staty
+    const updatedEmbed = new EmbedBuilder()
+        .setColor(0x0099FF)
+        .setTitle('📊 ZAMĚSTNANCI')
+        .setDescription('TEST')
+        .addFields(
+            { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
+            { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
+        )
+        .setTimestamp()
+        .setFooter({
+            text: `Aktualizováno: ${new Date().toLocaleString('cs-CZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' })}`
+        });
+
+    // **Aktualizujeme zprávu hned po startu bota**
+    dutyMessage.edit({ embeds: [updatedEmbed] });
+
     // Automatická aktualizace každou minutu
     setInterval(async () => {
         const dutyChannel = await client.channels.fetch(dutyChannelId);
@@ -148,22 +179,19 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.reply(`<@${user.id}>, jsi odpojen od služby. Odpracoval/a jsi ${formattedWorkedTime}.`);
         }
 
-        // Generování seznamu lidí, kteří jsou ve službě, s jejich časy
+        // **Uživatelská data aktualizována hned po příkazu /sluzba**
         const usersOnDuty = Object.values(users).filter(userData => userData.status === 'on').map(userData => {
             const timeInService = formatTime(Date.now() - userData.startTime); // Čas ve službě v HH:MM:SS
             return `<@${userData.id}> - **Ve službě od:** ${userData.lastTime} | **Čas ve službě:** ${timeInService}`;
         });
 
-        // Generování seznamu pro "Odpracováno tento týden"
         const workedThisWeek = Object.values(users).map(userData => {
             const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
             return `<@${userData.id}> - **Naposledy ve službě:** ${userData.lastTime} | **Odpracovaný čas:** ${workedTime}`;
         });
 
-        // Celkový čas odsloužený tímto týdnem
         const totalWorkedHours = Object.values(users).reduce((sum, userData) => sum + userData.workedHours, 0);
 
-        // Vytvoří nový embed se staty
         const updatedEmbed = new EmbedBuilder()
             .setColor(0x0099FF)
             .setTitle('📊 ZAMĚSTNANCI')
