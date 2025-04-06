@@ -1,16 +1,48 @@
-const { Client, GatewayIntentBits, EmbedBuilder, SlashCommandBuilder, Collection, REST, Routes } = require('discord.js');
-const { loadUsers, saveUsers } = require('./jsonbin');
+const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const axios = require('axios');
 require('dotenv').config();
 
-const token = process.env.TOKEN;
-const clientId = process.env.CLIENT_ID;
-const guildId = process.env.GUILD_ID;
+console.log("✅ Spouštím index.js...");
 
-if (!token || !clientId || !guildId) {
-    console.error('Chybí TOKEN, CLIENT_ID nebo GUILD_ID v .env souboru');
+// ENV hodnoty
+const token = process.env.TOKEN;
+const BIN_ID = process.env.JSONBIN_BIN_ID;
+const API_KEY = process.env.JSONBIN_API_KEY;
+
+if (!token || !BIN_ID || !API_KEY) {
+    console.error("❌ Chybí TOKEN, JSONBIN_BIN_ID nebo JSONBIN_API_KEY v .env!");
     process.exit(1);
 }
 
+// HEADERY pro JSONBIN
+const headers = {
+    'Content-Type': 'application/json',
+    'X-Master-Key': API_KEY
+};
+
+// FUNKCE pro načítání a ukládání
+async function loadUsers() {
+    try {
+        const res = await axios.get(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers });
+        console.log("📥 JSONBin načten.");
+        return res.data.record.users || {};
+    } catch (error) {
+        console.error("❌ Chyba při načítání z JSONBin:", error.message);
+        return {};
+    }
+}
+
+async function saveUsers(users) {
+    try {
+        const res = await axios.put(`https://api.jsonbin.io/v3/b/${BIN_ID}`, { users }, { headers });
+        console.log("💾 Uživatelé uloženi do JSONBin.");
+        return res.data;
+    } catch (error) {
+        console.error("❌ Chyba při ukládání do JSONBin:", error.message);
+    }
+}
+
+// Nastavení klienta
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -18,30 +50,6 @@ const client = new Client({
         GatewayIntentBits.MessageContent
     ]
 });
-
-client.commands = new Collection();
-
-// Slash příkazy
-const commands = [
-    new SlashCommandBuilder()
-        .setName('sluzba')
-        .setDescription('Připojit/odpojit se od služby'),
-    new SlashCommandBuilder()
-        .setName('reset')
-        .setDescription('Resetuje všechna data a odpracované hodiny')
-].map(cmd => cmd.toJSON());
-
-// Registrace příkazů
-const rest = new REST({ version: '10' }).setToken(token);
-(async () => {
-    try {
-        console.log('Registruji slash příkazy...');
-        await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
-        console.log('Slash příkazy byly úspěšně zaregistrovány!');
-    } catch (error) {
-        console.error(error);
-    }
-})();
 
 const dutyChannelId = '1358252706417872978';
 let dutyMessageId = null;
@@ -54,43 +62,92 @@ function formatTime(ms) {
 }
 
 client.once('ready', async () => {
-    console.log(`✅ Přihlášen jako ${client.user.tag}`);
+    console.log(`🤖 Bot přihlášen jako ${client.user.tag}`);
 
-    let users = await loadUsers();
-    const dutyChannel = await client.channels.fetch(dutyChannelId);
+    try {
+        let users = await loadUsers();
 
-    const embed = new EmbedBuilder()
-        .setColor(0x0099FF)
-        .setTitle('📊 ZAMĚSTNANCI')
-        .setDescription('Probíhá sledování služeb.')
-        .addFields(
-            { name: '✅ Ve službě:', value: 'Zatím nikdo není ve službě' },
-            { name: '⏱️ Odpracováno tento týden:', value: '0h 0m' }
-        )
-        .setTimestamp();
+        // Slash příkazy
+        await client.application.commands.create(new SlashCommandBuilder().setName('sluzba').setDescription('Připojit/odpojit se od služby'));
+        await client.application.commands.create(new SlashCommandBuilder().setName('reset').setDescription('Resetuje všechna data'));
+        console.log("✅ Slash příkazy zaregistrovány.");
 
-    const message = await dutyChannel.send({ embeds: [embed] });
-    dutyMessageId = message.id;
+        const dutyChannel = await client.channels.fetch(dutyChannelId);
+        if (!dutyChannel) {
+            console.error("❌ Kanál nebyl nalezen.");
+            return;
+        }
 
-    // Každou minutu aktualizace
-    setInterval(() => updateEmbed(dutyChannel), 60000);
+        console.log("✅ Kanál pro službu načten.");
 
-    await updateEmbed(dutyChannel);
+        const embed = new EmbedBuilder()
+            .setColor(0x0099FF)
+            .setTitle('📊 ZAMĚSTNANCI')
+            .setDescription('Načítání dat...')
+            .addFields(
+                { name: '✅ Ve službě:', value: 'Žádní uživatelé ve službě' },
+                { name: '⏱️ Odpracováno tento týden:', value: '0h 0m' }
+            )
+            .setTimestamp();
+
+        const dutyMessage = await dutyChannel.send({ embeds: [embed] });
+        dutyMessageId = dutyMessage.id;
+        console.log("✅ Embed zpráva odeslána.");
+
+        // Automatická aktualizace
+        setInterval(async () => {
+            try {
+                const updatedUsers = await loadUsers();
+
+                const usersOnDuty = Object.values(updatedUsers)
+                    .filter(u => u.status === 'on')
+                    .map(u => {
+                        const time = formatTime(Date.now() - u.startTime);
+                        return `<@${u.id}> - Ve službě od: ${u.lastTime} | Čas ve službě: ${time}`;
+                    });
+
+                const workedThisWeek = Object.values(updatedUsers).map(u => {
+                    const worked = formatTime(u.workedHours * 3600000);
+                    return `<@${u.id}> - Naposledy ve službě: ${u.lastTime} | Odpracovaný čas: ${worked}`;
+                });
+
+                const updatedEmbed = new EmbedBuilder()
+                    .setColor(0x0099FF)
+                    .setTitle('📊 ZAMĚSTNANCI')
+                    .setDescription('Pravidelná aktualizace')
+                    .addFields(
+                        { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé ve službě' },
+                        { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádný záznam' }
+                    )
+                    .setTimestamp()
+                    .setFooter({ text: new Date().toLocaleString('cs-CZ') });
+
+                const msg = await dutyChannel.messages.fetch(dutyMessageId);
+                await msg.edit({ embeds: [updatedEmbed] });
+                console.log("🔁 Embed zpráva aktualizována.");
+            } catch (err) {
+                console.error("❌ Chyba při aktualizaci embedu:", err.message);
+            }
+        }, 60000);
+
+    } catch (err) {
+        console.error("❌ Chyba při spouštění:", err.message);
+    }
 });
 
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isCommand()) return;
+
+    console.log(`📥 Slash příkaz: ${interaction.commandName} od ${interaction.user.tag}`);
 
     const { commandName, user } = interaction;
     const member = await interaction.guild.members.fetch(user.id);
-    let users = await loadUsers();
 
-    const sluzbaRole = '1358253943339352225';
-    const resetRole = '1358230355244744896';
+    const users = await loadUsers();
 
     if (commandName === 'sluzba') {
-        if (!member.roles.cache.has(sluzbaRole)) {
-            return interaction.reply({ content: 'Nemáš oprávnění použít tento příkaz.', ephemeral: true });
+        if (!member.roles.cache.has('1358253943339352225')) {
+            return interaction.reply({ content: 'Nemáš práva.', ephemeral: true });
         }
 
         const userData = users[user.id];
@@ -99,73 +156,41 @@ client.on('interactionCreate', async interaction => {
                 id: user.id,
                 status: 'on',
                 startTime: Date.now(),
-                lastTime: new Date().toLocaleString('cs-CZ', { timeZone: 'Europe/Prague' }),
+                lastTime: new Date().toLocaleString('cs-CZ'),
                 workedHours: userData ? userData.workedHours : 0
             };
             await saveUsers(users);
-            await interaction.reply(`<@${user.id}> se právě připojil ke službě.`);
+            await interaction.reply(`<@${user.id}> jsi připojen ke službě.`);
+            console.log(`✅ ${user.tag} připojen ke službě.`);
         } else {
             const worked = Date.now() - userData.startTime;
-            users[user.id].workedHours += worked / 3600000;
-            users[user.id].status = 'off';
+            userData.workedHours += worked / 3600000;
+            userData.status = 'off';
             await saveUsers(users);
-            await interaction.reply(`<@${user.id}> se odpojil od služby. Odpracoval: ${formatTime(worked)}`);
+            const formatted = formatTime(worked);
+            await interaction.reply(`<@${user.id}> odpojen ze služby. Odpracováno: ${formatted}`);
+            console.log(`🕒 ${user.tag} odpojen ze služby. Čas: ${formatted}`);
         }
-
-        const dutyChannel = await client.channels.fetch(dutyChannelId);
-        await updateEmbed(dutyChannel);
     }
 
     if (commandName === 'reset') {
-        if (!member.roles.cache.has(resetRole)) {
-            return interaction.reply({ content: 'Nemáš oprávnění použít tento příkaz.', ephemeral: true });
+        if (!member.roles.cache.has('1358230355244744896')) {
+            return interaction.reply({ content: 'Nemáš práva.', ephemeral: true });
         }
 
         for (const id in users) {
-            users[id] = {
-                id,
-                status: 'off',
-                startTime: 0,
-                lastTime: '',
-                workedHours: 0
-            };
+            users[id].workedHours = 0;
+            users[id].status = 'off';
+            users[id].startTime = 0;
+            users[id].lastTime = '';
         }
+
         await saveUsers(users);
         await interaction.reply({ content: 'Data byla resetována.', ephemeral: true });
-
-        const dutyChannel = await client.channels.fetch(dutyChannelId);
-        await updateEmbed(dutyChannel);
+        console.log("♻️ Data byla resetována.");
     }
 });
 
-async function updateEmbed(channel) {
-    let users = await loadUsers();
-    const message = await channel.messages.fetch(dutyMessageId);
-
-    const usersOnDuty = Object.values(users).filter(u => u.status === 'on');
-    const workedText = Object.values(users)
-        .map(u => `<@${u.id}> – ${formatTime(u.workedHours * 3600000)}`)
-        .join('\n') || 'Zatím nikdo neodpracoval žádný čas.';
-
-    const embed = new EmbedBuilder()
-        .setColor(0x0099FF)
-        .setTitle('📊 ZAMĚSTNANCI')
-        .addFields(
-            {
-                name: '✅ Ve službě:',
-                value: usersOnDuty.length
-                    ? usersOnDuty.map(u => `<@${u.id}> – od ${u.lastTime} (${formatTime(Date.now() - u.startTime)})`).join('\n')
-                    : 'Nikdo není aktuálně ve službě.'
-            },
-            {
-                name: '⏱️ Odpracováno tento týden:',
-                value: workedText
-            }
-        )
-        .setTimestamp()
-        .setFooter({ text: `Aktualizováno: ${new Date().toLocaleString('cs-CZ')}` });
-
-    await message.edit({ embeds: [embed] });
-}
-
-client.login(token);
+client.login(token).catch(err => {
+    console.error("❌ Nepodařilo se přihlásit:", err.message);
+});
