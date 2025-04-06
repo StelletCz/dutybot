@@ -39,7 +39,7 @@ client.once('ready', async () => {
     if (!dutyMessageId) {
       const embed = new EmbedBuilder()
         .setColor('#0099ff')
-        .setTitle('👮 Seznam aktivních ve službě')
+        .setTitle('👮 Služby')
         .setDescription('*Žádní uživatelé nejsou ve službě*')
         .setTimestamp();
 
@@ -47,16 +47,13 @@ client.once('ready', async () => {
       dutyMessageId = message.id;
       console.log(`📨 Embed zpráva vytvořena s ID: ${dutyMessageId}`);
 
-      // Zapsání do .env souboru
       const envPath = path.resolve(__dirname, '.env');
       let envContent = fs.readFileSync(envPath, 'utf8');
-
       if (!envContent.includes('DUTY_MESSAGE_ID=')) {
         envContent += `\nDUTY_MESSAGE_ID=${dutyMessageId}`;
       } else {
         envContent = envContent.replace(/DUTY_MESSAGE_ID=.*/, `DUTY_MESSAGE_ID=${dutyMessageId}`);
       }
-
       fs.writeFileSync(envPath, envContent);
       console.log(`📁 DUTY_MESSAGE_ID zapsáno do .env souboru.`);
     }
@@ -77,19 +74,30 @@ client.on('interactionCreate', async (interaction) => {
     let users = await loadUsers();
     const userId = interaction.user.id;
     const userName = interaction.user.username;
+    const now = new Date().toISOString();
 
-    if (users[userId]) {
-      delete users[userId];
-      await interaction.reply({ content: `❌ ${userName} ukončil službu.`, ephemeral: true });
+    if (users[userId] && users[userId].start) {
+      const start = new Date(users[userId].start);
+      const end = new Date();
+      const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
+
+      if (!users[userId].total) users[userId].total = 0;
+      users[userId].total += parseFloat(hours);
+      delete users[userId].start;
+
+      await interaction.reply({ content: `❌ ${userName} ukončil službu. (+${hours} h)`, ephemeral: true });
     } else {
-      users[userId] = userName;
+      users[userId] = {
+        name: userName,
+        start: now,
+        total: users[userId]?.total || 0
+      };
       await interaction.reply({ content: `✅ ${userName} zahájil službu.`, ephemeral: true });
     }
 
     await saveUsers(users);
     const channel = await client.channels.fetch(dutyChannelId);
     await updateEmbed(channel);
-
   } catch (error) {
     console.error("❌ Chyba při zpracování příkazu:", error);
     await interaction.reply({ content: "⚠️ Nastala chyba, zkuste to znovu.", ephemeral: true });
@@ -101,12 +109,22 @@ async function updateEmbed(channel) {
     let users = await loadUsers();
     const message = await channel.messages.fetch(dutyMessageId);
 
-    const activeUsers = Object.values(users).join('\n') || '*Žádní uživatelé nejsou ve službě*';
+    const activeUsers = Object.entries(users)
+      .filter(([_, data]) => data.start)
+      .map(([_, data]) => `🟢 **${data.name}** (od <t:${Math.floor(new Date(data.start).getTime() / 1000)}:R>)`)
+      .join('\n') || '*Žádní uživatelé nejsou ve službě*';
+
+    const totals = Object.entries(users)
+      .map(([_, data]) => `👤 **${data.name}** - ${data.total?.toFixed(2) || 0} h`)
+      .join('\n') || '*Žádné údaje*';
 
     const embed = new EmbedBuilder()
       .setColor('#0099ff')
-      .setTitle('👮 Seznam aktivních ve službě')
-      .setDescription(activeUsers)
+      .setTitle('👮 Služby')
+      .addFields(
+        { name: 'Aktivní ve službě', value: activeUsers, inline: false },
+        { name: 'Týdenní časy', value: totals, inline: false }
+      )
       .setTimestamp();
 
     await message.edit({ embeds: [embed] });
