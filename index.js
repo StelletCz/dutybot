@@ -41,14 +41,14 @@ client.once('ready', async () => {
     const data = new SlashCommandBuilder()
         .setName('sluzba')
         .setDescription('Připojit/odpojit se od služby');
-    
-    const resetCommand = new SlashCommandBuilder()
+
+    const resetData = new SlashCommandBuilder()
         .setName('reset')
-        .setDescription('Smaže všechna data a resetuje odpracovaný čas ve službě');
+        .setDescription('Resetuje všechna data a odpracované hodiny');
 
     // Registrace příkazů u Discord API
     await client.application.commands.create(data);
-    await client.application.commands.create(resetCommand);
+    await client.application.commands.create(resetData);
 
     // Získání kanálu pro status zprávu
     const dutyChannel = await client.channels.fetch(dutyChannelId);
@@ -146,18 +146,20 @@ client.on('interactionCreate', async (interaction) => {
 
     const { commandName, user } = interaction;
 
-    // Ověření, že uživatel má správnou roli
-    const requiredRoleId = '1354526121005154393';
+    // Ověření, že uživatel má správnou roli pro příkaz /sluzba
+    const sluzbaRoleId = '1354526121005154393';
+    const resetRoleId = '1354526121005154394';
     const member = await interaction.guild.members.fetch(user.id);
 
-    if (!member.roles.cache.has(requiredRoleId)) {
-        return interaction.reply({
-            content: 'Nemáš dostatečná práva pro použití tohoto příkazu.',
-            ephemeral: true // Zobrazí tuto zprávu pouze uživateli
-        });
-    }
-
     if (commandName === 'sluzba') {
+        // Ověříme, že uživatel má roli pro /sluzba (role s ID 1354526121005154393)
+        if (!member.roles.cache.has(sluzbaRoleId)) {
+            return interaction.reply({
+                content: 'Nemáš dostatečná práva pro použití tohoto příkazu.',
+                ephemeral: true // Zobrazí tuto zprávu pouze uživateli
+            });
+        }
+
         // Načítání uživatele z JSONBin
         let users = await loadUsers();
         const userData = users[user.id];
@@ -222,46 +224,34 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (commandName === 'reset') {
-        // Resetování dat
-        let users = await loadUsers();
-        users = {};  // Vyprázdníme všechna data
-
-        await saveUsers(users);
-        await interaction.reply('Všechna data byla úspěšně smazána a odpracované hodiny byly resetovány.');
-        
-        // Aktualizujeme embed zprávu
-        const resetEmbed = new EmbedBuilder()
-            .setColor(0x0099FF)
-            .setTitle('📊 ZAMĚSTNANCI')
-            .setDescription('Všechna data byla resetována.')
-            .addFields(
-                { name: '✅ Ve službě:', value: 'Žádní uživatelé jsou ve službě' },
-                { name: '⏱️ Odpracováno tento týden:', value: '0h 0m' }
-            )
-            .setTimestamp();
-
-        // Získání kanálu pro status zprávu
-        const dutyChannel = await client.channels.fetch(dutyChannelId);
-        const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
-
-        // Aktualizace zprávy
-        dutyMessage.edit({ embeds: [resetEmbed] });
-    }
-});
-
-// Při ukončení nebo pádu bota smažeme zprávu
-process.on('SIGINT', async () => {
-    console.log('Bot se vypíná...');
-    if (dutyMessageId) {
-        try {
-            const dutyChannel = await client.channels.fetch(dutyChannelId);
-            await dutyChannel.messages.delete(dutyMessageId);
-            console.log('Zpráva byla smazána.');
-        } catch (error) {
-            console.error('Chyba při mazání zprávy:', error);
+        // Ověření, že uživatel má roli pro /reset (role s ID 1354526121005154394)
+        if (!member.roles.cache.has(resetRoleId)) {
+            return interaction.reply({
+                content: 'Nemáš dostatečná práva pro použití tohoto příkazu.',
+                ephemeral: true // Zobrazí tuto zprávu pouze uživateli
+            });
         }
+
+        // Smažeme všechna data v JSONBin
+        let users = await loadUsers();
+        for (const userId in users) {
+            if (users.hasOwnProperty(userId)) {
+                users[userId].workedHours = 0;  // Reset odpracovaných hodin
+                users[userId].status = 'off';  // Reset statusu na 'off'
+                users[userId].startTime = 0;  // Reset času začátku služby
+                users[userId].lastTime = '';  // Reset poslední doby služby
+            }
+        }
+
+        // Uložíme resetovaná data
+        await saveUsers(users);
+
+        // Odpověď po provedení resetu
+        await interaction.reply({
+            content: 'Všechna data byla resetována. Odpracované hodiny a statusy byly vymazány.',
+            ephemeral: true // Zobrazí tuto zprávu pouze uživateli
+        });
     }
-    process.exit();
 });
 
 // Přihlášení bota
