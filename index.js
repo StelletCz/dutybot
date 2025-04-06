@@ -21,7 +21,7 @@ const client = new Client({
 });
 
 // ID kanálu, kde bude stat panel
-const dutyChannelId = '1358252706417872978';
+const dutyChannelId = '1358183328104321223';
 let dutyMessageId = null;
 
 function formatTime(ms) {
