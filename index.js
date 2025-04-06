@@ -185,5 +185,20 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
+// Při ukončení nebo pádu bota smažeme zprávu
+process.on('SIGINT', async () => {
+    console.log('Bot se vypíná...');
+    if (dutyMessageId) {
+        try {
+            const dutyChannel = await client.channels.fetch(dutyChannelId);
+            await dutyChannel.messages.delete(dutyMessageId);
+            console.log('Zpráva byla smazána.');
+        } catch (error) {
+            console.error('Nepodařilo se smazat zprávu:', error);
+        }
+    }
+    process.exit(0);
+});
+
 // Připojíme bota k Discordu pomocí tokenu
 client.login(token);
