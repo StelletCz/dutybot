@@ -146,7 +146,7 @@ client.on('interactionCreate', async (interaction) => {
     const users = await loadUsers();
 
     if (commandName === 'sluzba') {
-        if (!member.roles.cache.has('1354526121005154393')) {
+        if (!member.roles.cache.has('1358253943339352225')) {
             return interaction.reply({ content: 'Nemáš práva.', ephemeral: true });
         }
 
@@ -174,7 +174,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (commandName === 'reset') {
-        if (!member.roles.cache.has('1354526121005154394')) {
+        if (!member.roles.cache.has('1358230355244744896')) {
             return interaction.reply({ content: 'Nemáš práva.', ephemeral: true });
         }
 
