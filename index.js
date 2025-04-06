@@ -99,6 +99,9 @@ client.once('ready', async () => {
         const dutyChannel = await client.channels.fetch(dutyChannelId);
         const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
 
+        // Načteme uživatele z JSONBin před každou aktualizací
+        let users = await loadUsers();
+
         // Generování seznamu lidí, kteří jsou ve službě, s jejich časy
         const usersOnDuty = Object.values(users).filter(userData => userData.status === 'on').map(userData => {
             const timeInService = formatTime(Date.now() - userData.startTime); // Čas ve službě v HH:MM:SS
@@ -223,11 +226,11 @@ process.on('SIGINT', async () => {
             await dutyChannel.messages.delete(dutyMessageId);
             console.log('Zpráva byla smazána.');
         } catch (error) {
-            console.error('Nepodařilo se smazat zprávu:', error);
+            console.error('Chyba při mazání zprávy:', error);
         }
     }
-    process.exit(0);
+    process.exit();
 });
 
-// Připojíme bota k Discordu pomocí tokenu
+// Přihlášení bota
 client.login(token);
