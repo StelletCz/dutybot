@@ -2,7 +2,7 @@ const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder } = require
 const { loadUsers, saveUsers } = require('./jsonbin'); // Importujeme funkce pro práci s JSONBin
 require('dotenv').config();
 
-// Načteme token z environmentální proměnné
+// Načteme token z environmentálních proměnných
 const token = process.env.TOKEN;
 
 // Zajistíme, že token je nastaven
@@ -130,7 +130,7 @@ client.on('interactionCreate', async (interaction) => {
                 status: 'on',
                 startTime: Date.now(),
                 lastTime: new Date().toLocaleString('cs-CZ', { timeZone: 'Europe/Prague' }),
-                workedHours: 0
+                workedHours: userData ? userData.workedHours : 0 // Pokud uživatel už nějaké hodiny odpracoval, připočítáme je
             };
 
             await saveUsers(users);
@@ -139,8 +139,10 @@ client.on('interactionCreate', async (interaction) => {
             // Pokud je uživatel ve službě, odpojí ho
             const hoursWorked = Date.now() - userData.startTime; // Počet odpracovaných milisekund
             const formattedWorkedTime = formatTime(hoursWorked); // Převede milisekundy na HH:MM:SS
-            userData.status = 'off';
+
+            // Přičteme odpracovaný čas k celkovým hodinám
             userData.workedHours += hoursWorked / (1000 * 60 * 60); // Přidáme odpracované hodiny
+            userData.status = 'off';
 
             await saveUsers(users);
             await interaction.reply(`<@${user.id}>, jsi odpojen od služby. Odpracoval/a jsi ${formattedWorkedTime}.`);
