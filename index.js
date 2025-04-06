@@ -1,14 +1,45 @@
 const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { loadUsers, saveUsers } = require('./jsonbin');
+const axios = require('axios');
 require('dotenv').config();
 
 console.log("✅ Spouštím index.js...");
 
-// Načteme token z .env
+// ENV hodnoty
 const token = process.env.TOKEN;
-if (!token) {
-    console.error("❌ Token nebyl nalezen v .env.");
+const BIN_ID = process.env.JSONBIN_BIN_ID;
+const API_KEY = process.env.JSONBIN_API_KEY;
+
+if (!token || !BIN_ID || !API_KEY) {
+    console.error("❌ Chybí TOKEN, JSONBIN_BIN_ID nebo JSONBIN_API_KEY v .env!");
     process.exit(1);
+}
+
+// HEADERY pro JSONBIN
+const headers = {
+    'Content-Type': 'application/json',
+    'X-Master-Key': API_KEY
+};
+
+// FUNKCE pro načítání a ukládání
+async function loadUsers() {
+    try {
+        const res = await axios.get(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers });
+        console.log("📥 JSONBin načten.");
+        return res.data.record.users || {};
+    } catch (error) {
+        console.error("❌ Chyba při načítání z JSONBin:", error.message);
+        return {};
+    }
+}
+
+async function saveUsers(users) {
+    try {
+        const res = await axios.put(`https://api.jsonbin.io/v3/b/${BIN_ID}`, { users }, { headers });
+        console.log("💾 Uživatelé uloženi do JSONBin.");
+        return res.data;
+    } catch (error) {
+        console.error("❌ Chyba při ukládání do JSONBin:", error.message);
+    }
 }
 
 // Nastavení klienta
@@ -35,14 +66,10 @@ client.once('ready', async () => {
 
     try {
         let users = await loadUsers();
-        console.log("✅ Načtení uživatelů z JSONBin proběhlo.");
 
         // Slash příkazy
-        const data = new SlashCommandBuilder().setName('sluzba').setDescription('Připojit/odpojit se od služby');
-        const resetData = new SlashCommandBuilder().setName('reset').setDescription('Resetuje všechna data');
-
-        await client.application.commands.create(data);
-        await client.application.commands.create(resetData);
+        await client.application.commands.create(new SlashCommandBuilder().setName('sluzba').setDescription('Připojit/odpojit se od služby'));
+        await client.application.commands.create(new SlashCommandBuilder().setName('reset').setDescription('Resetuje všechna data'));
         console.log("✅ Slash příkazy zaregistrovány.");
 
         const dutyChannel = await client.channels.fetch(dutyChannelId);
@@ -67,7 +94,7 @@ client.once('ready', async () => {
         dutyMessageId = dutyMessage.id;
         console.log("✅ Embed zpráva odeslána.");
 
-        // Spustíme aktualizaci každou minutu
+        // Automatická aktualizace
         setInterval(async () => {
             try {
                 const updatedUsers = await loadUsers();
