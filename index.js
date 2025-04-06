@@ -186,7 +186,10 @@ client.on('interactionCreate', async (interaction) => {
             userData.status = 'off';
 
             await saveUsers(users);
-            await interaction.reply(`<@${user.id}>, jsi odpojen od služby. Odpracoval/a jsi ${formattedWorkedTime}.`);
+            await interaction.reply({
+                content: `Odhlásil/a ses ze služby. Odpracoval/a jsi ${formattedWorkedTime}.`,
+                ephemeral: true // Zobrazí tuto zprávu pouze uživateli
+            });
         }
 
         // **Uživatelská data aktualizována hned po příkazu /sluzba**
