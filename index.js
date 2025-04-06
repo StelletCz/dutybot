@@ -1,7 +1,8 @@
 const { Client, GatewayIntentBits, Partials, EmbedBuilder } = require('discord.js');
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const { loadUsers, saveUsers } = require('./jsonbin');
-const { updateEnvVariable } = require('./envUtils');
 
 const token = process.env.DISCORD_TOKEN;
 const dutyChannelId = process.env.DUTY_CHANNEL_ID;
@@ -44,8 +45,20 @@ client.once('ready', async () => {
 
       const message = await channel.send({ embeds: [embed] });
       dutyMessageId = message.id;
-      updateEnvVariable('DUTY_MESSAGE_ID', dutyMessageId);
       console.log(`📨 Embed zpráva vytvořena s ID: ${dutyMessageId}`);
+
+      // Zapsání do .env souboru
+      const envPath = path.resolve(__dirname, '.env');
+      let envContent = fs.readFileSync(envPath, 'utf8');
+
+      if (!envContent.includes('DUTY_MESSAGE_ID=')) {
+        envContent += `\nDUTY_MESSAGE_ID=${dutyMessageId}`;
+      } else {
+        envContent = envContent.replace(/DUTY_MESSAGE_ID=.*/, `DUTY_MESSAGE_ID=${dutyMessageId}`);
+      }
+
+      fs.writeFileSync(envPath, envContent);
+      console.log(`📁 DUTY_MESSAGE_ID zapsáno do .env souboru.`);
     }
 
     await updateEmbed(channel);
