@@ -55,9 +55,9 @@ client.once('ready', async () => {
 
     // Vytvoření embed zprávy
     const embed = new EmbedBuilder()
-        .setColor(0x0099FF)
+        .setColor('#ffcc00')
         .setTitle('📊 DATA ZAMĚSTNANCŮ')
-        .setDescription(' ')
+        .setDescription('Aktuální data zaměstnanců pro tento týden.')
         .addFields(
             { name: '✅ Ve službě:', value: 'Žádní uživatelé jsou ve službě' },
             { name: '⏱️ Odpracováno tento týden:', value: '0h 0m' }
@@ -84,9 +84,9 @@ client.once('ready', async () => {
 
     // Vytvoří nový embed se staty
     const updatedEmbed = new EmbedBuilder()
-        .setColor(0x0099FF)
+        .setColor('#ffcc00')
         .setTitle('📊 DATA ZAMĚSTNANCŮ')
-        .setDescription(' ')
+        .setDescription('Aktuální data zaměstnanců pro tento týden.')
         .addFields(
             { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
             { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
@@ -124,9 +124,9 @@ client.once('ready', async () => {
 
         // Vytvoří nový embed se staty
         const updatedEmbed = new EmbedBuilder()
-            .setColor(0x0099FF)
+            .setColor('#ffcc00')
             .setTitle('📊 DATA ZAMĚSTNANCŮ')
-            .setDescription(' ')
+            .setDescription('Aktuální data zaměstnanců pro tento týden.')
             .addFields(
                 { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
                 { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
@@ -209,9 +209,9 @@ client.on('interactionCreate', async (interaction) => {
         const totalWorkedHours = Object.values(users).reduce((sum, userData) => sum + userData.workedHours, 0);
 
         const updatedEmbed = new EmbedBuilder()
-            .setColor(0x0099FF)
+            .setColor('#ffcc00')
             .setTitle('📊 DATA ZAMĚSTNANCŮ')
-            .setDescription(' ')
+            .setDescription('Aktuální data zaměstnanců pro tento týden.')
             .addFields(
                 { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
                 { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
