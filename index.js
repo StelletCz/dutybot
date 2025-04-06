@@ -57,7 +57,7 @@ client.once('ready', async () => {
     const embed = new EmbedBuilder()
         .setColor(0x0099FF)
         .setTitle('📊 ZAMĚSTNANCI')
-        .setDescription('TEST')
+        .setDescription('TESTT')
         .addFields(
             { name: '✅ Ve službě:', value: 'Žádní uživatelé jsou ve službě' },
             { name: '⏱️ Odpracováno tento týden:', value: '0h 0m' }
