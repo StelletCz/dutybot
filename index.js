@@ -24,7 +24,6 @@ const client = new Client({
 const dutyChannelId = '1358183328104321223';
 let dutyMessageId = null;
 
-// Funkce pro převod času na HH:MM:SS
 function formatTime(ms) {
     const hours = Math.floor(ms / (1000 * 60 * 60));
     const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
@@ -34,6 +33,9 @@ function formatTime(ms) {
 
 client.once('ready', async () => {
     console.log(`Bot je přihlášen jako ${client.user.tag}`);
+
+    // Načítání uživatelů při spuštění
+    let users = await loadUsers();
 
     // Vytvoření slash příkazu
     const data = new SlashCommandBuilder()
@@ -65,9 +67,6 @@ client.once('ready', async () => {
     setInterval(async () => {
         const dutyChannel = await client.channels.fetch(dutyChannelId);
         const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
-
-        // Načítání uživatelů ve službě z JSONBin
-        const users = await loadUsers();
 
         // Generování seznamu lidí, kteří jsou ve službě, s jejich časy
         const usersOnDuty = Object.values(users).filter(userData => userData.status === 'on').map(userData => {
@@ -121,7 +120,7 @@ client.on('interactionCreate', async (interaction) => {
 
     if (commandName === 'sluzba') {
         // Načítání uživatele z JSONBin
-        const users = await loadUsers();
+        let users = await loadUsers();
         const userData = users[user.id];
 
         if (!userData || userData.status === 'off') {
