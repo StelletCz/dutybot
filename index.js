@@ -18,6 +18,9 @@ const commands = [
 
 const rest = new REST({ version: '10' }).setToken(token);
 
+let users = await loadUsers();
+let dutyMessage;
+
 client.once('ready', async () => {
   console.log(`Přihlášen jako ${client.user.tag}`);
 
@@ -26,35 +29,40 @@ client.once('ready', async () => {
     { body: commands },
   );
 
-  const channel = await client.channels.fetch(process.env.DUTY_CHANNEL_ID);
-  const message = await channel.messages.fetch(process.env.DUTY_MESSAGE_ID);
+  const channel = await client.channels.fetch('1358252706417872978');
+
+  const embed = generateEmbed();
+  const sentMessage = await channel.send({ embeds: [embed] });
+  dutyMessage = sentMessage;
 
   setInterval(async () => {
     await saveUsers(users);
-
-    const usersOnDuty = Object.values(users).filter(u => u.status === 'on').map(u => {
-      const duration = formatTime(Date.now() - u.startTime);
-      return `<@${u.id}> - **Ve službě od:** ${u.lastTime} | **Čas ve službě:** ${duration}`;
-    });
-
-    const workedThisWeek = Object.values(users).map(u => {
-      const worked = formatTime(u.workedHours * 3600000);
-      return `<@${u.id}> - **Naposledy ve službě:** ${u.lastTime} | **Odpracovaný čas:** ${worked}`;
-    });
-
-    const embed = new EmbedBuilder()
-      .setColor(0x0099FF)
-      .setTitle('📊 ZAMĚSTNANCI')
-      .addFields(
-        { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Nikdo není ve službě' },
-        { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Zatím nikdo neodpracoval' }
-      )
-      .setTimestamp()
-      .setFooter({ text: `Aktualizováno: ${new Date().toLocaleString('cs-CZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' })}` });
-
-    await message.edit({ embeds: [embed] });
+    const updatedEmbed = generateEmbed();
+    if (dutyMessage) await dutyMessage.edit({ embeds: [updatedEmbed] });
   }, 60000);
 });
+
+function generateEmbed() {
+  const usersOnDuty = Object.values(users).filter(u => u.status === 'on').map(u => {
+    const duration = formatTime(Date.now() - u.startTime);
+    return `<@${u.id}> - **Ve službě od:** ${u.lastTime} | **Čas ve službě:** ${duration}`;
+  });
+
+  const workedThisWeek = Object.values(users).map(u => {
+    const worked = formatTime(u.workedHours * 3600000);
+    return `<@${u.id}> - **Naposledy ve službě:** ${u.lastTime} | **Odpracovaný čas:** ${worked}`;
+  });
+
+  return new EmbedBuilder()
+    .setColor(0x0099FF)
+    .setTitle('📊 ZAMĚSTNANCI')
+    .addFields(
+      { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Nikdo není ve službě' },
+      { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Zatím nikdo neodpracoval' }
+    )
+    .setTimestamp()
+    .setFooter({ text: `Aktualizováno: ${new Date().toLocaleString('cs-CZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' })}` });
+}
 
 async function loadUsers() {
   const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
@@ -84,8 +92,6 @@ function formatTime(ms) {
   const seconds = totalSeconds % 60;
   return `${hours}h ${minutes}m ${seconds}s`;
 }
-
-let users = await loadUsers();
 
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
