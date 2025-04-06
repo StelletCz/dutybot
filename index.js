@@ -56,8 +56,8 @@ client.once('ready', async () => {
     // Vytvoření embed zprávy
     const embed = new EmbedBuilder()
         .setColor(0x0099FF)
-        .setTitle('📊 ZAMĚSTNANCI')
-        .setDescription('TEST')
+        .setTitle('📊 DATA ZAMĚSTNANCŮ')
+        .setDescription(' ')
         .addFields(
             { name: '✅ Ve službě:', value: 'Žádní uživatelé jsou ve službě' },
             { name: '⏱️ Odpracováno tento týden:', value: '0h 0m' }
@@ -85,8 +85,8 @@ client.once('ready', async () => {
     // Vytvoří nový embed se staty
     const updatedEmbed = new EmbedBuilder()
         .setColor(0x0099FF)
-        .setTitle('📊 ZAMĚSTNANCI')
-        .setDescription('TEST')
+        .setTitle('📊 DATA ZAMĚSTNANCŮ')
+        .setDescription(' ')
         .addFields(
             { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
             { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
@@ -125,8 +125,8 @@ client.once('ready', async () => {
         // Vytvoří nový embed se staty
         const updatedEmbed = new EmbedBuilder()
             .setColor(0x0099FF)
-            .setTitle('📊 ZAMĚSTNANCI')
-            .setDescription('TEST')
+            .setTitle('📊 DATA ZAMĚSTNANCŮ')
+            .setDescription(' ')
             .addFields(
                 { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
                 { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
@@ -175,7 +175,10 @@ client.on('interactionCreate', async (interaction) => {
             };
 
             await saveUsers(users);
-            await interaction.reply(`<@${user.id}>, jsi připojen k službě!`);
+            await interaction.reply({
+                content: `Přihlásil/a ses do služby.`,
+                ephemeral: true // Zobrazí tuto zprávu pouze uživateli
+            });
         } else {
             // Pokud je uživatel ve službě, odpojí ho
             const hoursWorked = Date.now() - userData.startTime; // Počet odpracovaných milisekund
@@ -207,8 +210,8 @@ client.on('interactionCreate', async (interaction) => {
 
         const updatedEmbed = new EmbedBuilder()
             .setColor(0x0099FF)
-            .setTitle('📊 ZAMĚSTNANCI')
-            .setDescription('TEST')
+            .setTitle('📊 DATA ZAMĚSTNANCŮ')
+            .setDescription(' ')
             .addFields(
                 { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
                 { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
