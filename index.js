@@ -21,7 +21,7 @@ const client = new Client({
 });
 
 // ID kanálu, kde bude stat panel
-const dutyChannelId = '1358183328104321223';
+const dutyChannelId = '1358252706417872978';
 let dutyMessageId = null;
 
 function formatTime(ms) {
@@ -147,8 +147,8 @@ client.on('interactionCreate', async (interaction) => {
     const { commandName, user } = interaction;
 
     // Ověření, že uživatel má správnou roli pro příkaz /sluzba
-    const sluzbaRoleId = '1354526121005154393';
-    const resetRoleId = '1354526121005154394';
+    const sluzbaRoleId = '1358253943339352225';
+    const resetRoleId = '1358230355244744896';
     const member = await interaction.guild.members.fetch(user.id);
 
     if (commandName === 'sluzba') {
