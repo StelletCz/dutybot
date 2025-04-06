@@ -37,18 +37,18 @@ client.once('ready', async () => {
     // Načítání uživatelů při spuštění
     let users = await loadUsers();
 
-    // Vytvoření slash příkazu s subcommand 'reset'
+    // Vytvoření slash příkazu
     const data = new SlashCommandBuilder()
         .setName('sluzba')
-        .setDescription('Připojit/odpojit se od služby')
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('reset')
-                .setDescription('Resetuje všechna data a smaže je')
-        );
+        .setDescription('Připojit/odpojit se od služby');
+    
+    const resetCommand = new SlashCommandBuilder()
+        .setName('reset')
+        .setDescription('Smaže všechna data a resetuje odpracovaný čas ve službě');
 
-    // Registrace příkazu u Discord API
+    // Registrace příkazů u Discord API
     await client.application.commands.create(data);
+    await client.application.commands.create(resetCommand);
 
     // Získání kanálu pro status zprávu
     const dutyChannel = await client.channels.fetch(dutyChannelId);
@@ -147,10 +147,10 @@ client.on('interactionCreate', async (interaction) => {
     const { commandName, user } = interaction;
 
     // Ověření, že uživatel má správnou roli
-    const requiredRoleId = '1354526121005154394'; // Změněné ID na správnou roli
+    const requiredRoleId = '1354526121005154393';
     const member = await interaction.guild.members.fetch(user.id);
 
-    if (!member.roles.cache.has(requiredRoleId) && interaction.options.getSubcommand() === 'reset') {
+    if (!member.roles.cache.has(requiredRoleId)) {
         return interaction.reply({
             content: 'Nemáš dostatečná práva pro použití tohoto příkazu.',
             ephemeral: true // Zobrazí tuto zprávu pouze uživateli
@@ -158,40 +158,94 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (commandName === 'sluzba') {
-        if (interaction.options.getSubcommand() === 'reset') {
-            // Resetování dat v JSONBin
-            await saveUsers({}); // Resetujeme všechna data v JSONBin
-            await interaction.reply('Všechna data byla resetována!');
+        // Načítání uživatele z JSONBin
+        let users = await loadUsers();
+        const userData = users[user.id];
+
+        if (!userData || userData.status === 'off') {
+            // Pokud uživatel není ve službě, připojí ho
+            users[user.id] = {
+                id: user.id,
+                status: 'on',
+                startTime: Date.now(),
+                lastTime: new Date().toLocaleString('cs-CZ', { timeZone: 'Europe/Prague' }),
+                workedHours: userData ? userData.workedHours : 0 // Pokud uživatel už nějaké hodiny odpracoval, připočítáme je
+            };
+
+            await saveUsers(users);
+            await interaction.reply(`<@${user.id}>, jsi připojen k službě!`);
         } else {
-            // Načítání uživatele z JSONBin
-            let users = await loadUsers();
-            const userData = users[user.id];
+            // Pokud je uživatel ve službě, odpojí ho
+            const hoursWorked = Date.now() - userData.startTime; // Počet odpracovaných milisekund
+            const formattedWorkedTime = formatTime(hoursWorked); // Převede milisekundy na HH:MM:SS
 
-            if (!userData || userData.status === 'off') {
-                // Pokud uživatel není ve službě, připojí ho
-                users[user.id] = {
-                    id: user.id,
-                    status: 'on',
-                    startTime: Date.now(),
-                    lastTime: new Date().toLocaleString('cs-CZ', { timeZone: 'Europe/Prague' }),
-                    workedHours: userData ? userData.workedHours : 0 // Pokud uživatel už nějaké hodiny odpracoval, připočítáme je
-                };
+            // Přičteme odpracovaný čas k celkovým hodinám
+            userData.workedHours += hoursWorked / (1000 * 60 * 60); // Přidáme odpracované hodiny
+            userData.status = 'off';
 
-                await saveUsers(users);
-                await interaction.reply(`<@${user.id}>, jsi připojen k službě!`);
-            } else {
-                // Pokud je uživatel ve službě, odpojí ho
-                const hoursWorked = Date.now() - userData.startTime; // Počet odpracovaných milisekund
-                const formattedWorkedTime = formatTime(hoursWorked); // Převede milisekundy na HH:MM:SS
-
-                // Přičteme odpracovaný čas k celkovým hodinám
-                userData.workedHours += hoursWorked / (1000 * 60 * 60); // Přidáme odpracované hodiny
-                userData.status = 'off';
-
-                await saveUsers(users);
-                await interaction.reply(`<@${user.id}>, jsi odpojen od služby. Odpracoval/a jsi ${formattedWorkedTime}.`);
-            }
+            await saveUsers(users);
+            await interaction.reply(`<@${user.id}>, jsi odpojen od služby. Odpracoval/a jsi ${formattedWorkedTime}.`);
         }
+
+        // **Uživatelská data aktualizována hned po příkazu /sluzba**
+        const usersOnDuty = Object.values(users).filter(userData => userData.status === 'on').map(userData => {
+            const timeInService = formatTime(Date.now() - userData.startTime); // Čas ve službě v HH:MM:SS
+            return `<@${userData.id}> - **Ve službě od:** ${userData.lastTime} | **Čas ve službě:** ${timeInService}`;
+        });
+
+        const workedThisWeek = Object.values(users).map(userData => {
+            const workedTime = formatTime(userData.workedHours * 1000 * 60 * 60); // Celkový odpracovaný čas v HH:MM:SS
+            return `<@${userData.id}> - **Naposledy ve službě:** ${userData.lastTime} | **Odpracovaný čas:** ${workedTime}`;
+        });
+
+        const totalWorkedHours = Object.values(users).reduce((sum, userData) => sum + userData.workedHours, 0);
+
+        const updatedEmbed = new EmbedBuilder()
+            .setColor(0x0099FF)
+            .setTitle('📊 ZAMĚSTNANCI')
+            .setDescription('TEST')
+            .addFields(
+                { name: '✅ Ve službě:', value: usersOnDuty.length ? usersOnDuty.join('\n') : 'Žádní uživatelé jsou ve službě' },
+                { name: '⏱️ Odpracováno tento týden:', value: workedThisWeek.length ? workedThisWeek.join('\n') : 'Žádní uživatelé neodpracovali tento týden žádný čas' }
+            )
+            .setTimestamp()
+            .setFooter({
+                text: `Aktualizováno: ${new Date().toLocaleString('cs-CZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' })}`
+            });
+
+        // Získání kanálu pro status zprávu
+        const dutyChannel = await client.channels.fetch(dutyChannelId);
+        const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
+
+        // Aktualizace zprávy
+        dutyMessage.edit({ embeds: [updatedEmbed] });
+    }
+
+    if (commandName === 'reset') {
+        // Resetování dat
+        let users = await loadUsers();
+        users = {};  // Vyprázdníme všechna data
+
+        await saveUsers(users);
+        await interaction.reply('Všechna data byla úspěšně smazána a odpracované hodiny byly resetovány.');
+        
+        // Aktualizujeme embed zprávu
+        const resetEmbed = new EmbedBuilder()
+            .setColor(0x0099FF)
+            .setTitle('📊 ZAMĚSTNANCI')
+            .setDescription('Všechna data byla resetována.')
+            .addFields(
+                { name: '✅ Ve službě:', value: 'Žádní uživatelé jsou ve službě' },
+                { name: '⏱️ Odpracováno tento týden:', value: '0h 0m' }
+            )
+            .setTimestamp();
+
+        // Získání kanálu pro status zprávu
+        const dutyChannel = await client.channels.fetch(dutyChannelId);
+        const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
+
+        // Aktualizace zprávy
+        dutyMessage.edit({ embeds: [resetEmbed] });
     }
 });
 
