@@ -51,7 +51,7 @@ const client = new Client({
     ]
 });
 
-const dutyChannelId = '1358183328104321223';
+const dutyChannelId = '1358252706417872978';
 let dutyMessageId = null;
 
 function formatTime(ms) {
