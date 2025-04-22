@@ -235,16 +235,16 @@ client.on('interactionCreate', async (interaction) => {
                 ephemeral: true
             });
         }
-    
+
         // Resetujeme všechny uživatele a odpracované hodiny
         let users = {};
         await saveUsers(users); // Reset všech uživatelů
-    
+
         await interaction.reply({
             content: 'Všechna data byla resetována.',
             ephemeral: true
         });
-    
+
         // Aktualizace embed s nulovými hodnotami
         const updatedEmbed = new EmbedBuilder()
             .setColor('#ffcc00')
@@ -258,9 +258,11 @@ client.on('interactionCreate', async (interaction) => {
             .setFooter({
                 text: `Aktualizováno: ${new Date().toLocaleString('cs-CZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' })}`
             });
-    
+
         const dutyChannel = await client.channels.fetch(dutyChannelId);
         const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
         await dutyMessage.edit({ embeds: [updatedEmbed] });
     }
-    
+}); // Tato závorka byla chybějící
+
+client.login(token);
