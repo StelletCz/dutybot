@@ -220,45 +220,47 @@ client.on('interactionCreate', async (interaction) => {
             .setFooter({
                 text: `Aktualizováno: ${new Date().toLocaleString('cs-CZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' })}`
             });
-
-        // Získání kanálu pro status zprávu
+    
         const dutyChannel = await client.channels.fetch(dutyChannelId);
         const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
-
-        // Aktualizace zprávy
-        dutyMessage.edit({ embeds: [updatedEmbed] });
+        await dutyMessage.edit({ embeds: [updatedEmbed] });
     }
-
+    
+    // Příkaz pro resetování všech dat
     if (commandName === 'reset') {
-        // Ověření, že uživatel má roli pro /reset (role s ID 1354526121005154394)
+        // Ověření, že uživatel má roli pro reset
         if (!member.roles.cache.has(resetRoleId)) {
             return interaction.reply({
                 content: 'Nemáš dostatečná práva pro použití tohoto příkazu.',
-                ephemeral: true // Zobrazí tuto zprávu pouze uživateli
+                ephemeral: true
             });
         }
-
-        // Smažeme všechna data v JSONBin
-        let users = await loadUsers();
-        for (const userId in users) {
-            if (users.hasOwnProperty(userId)) {
-                users[userId].workedHours = 0;  // Reset odpracovaných hodin
-                users[userId].status = 'off';  // Reset statusu na 'off'
-                users[userId].startTime = 0;  // Reset času začátku služby
-                users[userId].lastTime = '';  // Reset poslední doby služby
-            }
-        }
-
-        // Uložíme resetovaná data
-        await saveUsers(users);
-
-        // Odpověď po provedení resetu
+    
+        // Resetujeme všechny uživatele a odpracované hodiny
+        let users = {};
+        await saveUsers(users); // Reset všech uživatelů
+    
         await interaction.reply({
-            content: 'Všechna data byla resetována. Odpracované hodiny a statusy byly vymazány.',
-            ephemeral: true // Zobrazí tuto zprávu pouze uživateli
+            content: 'Všechna data byla resetována.',
+            ephemeral: true
         });
+    
+        // Aktualizace embed s nulovými hodnotami
+        const updatedEmbed = new EmbedBuilder()
+            .setColor('#ffcc00')
+            .setTitle('📊 DATA ZAMĚSTNANCŮ')
+            .setDescription('Aktuální data zaměstnanců pro tento týden.')
+            .addFields(
+                { name: '✅ Ve službě:', value: 'Žádní uživatelé jsou ve službě' },
+                { name: '⏱️ Odpracováno tento týden:', value: '0h 0m' }
+            )
+            .setTimestamp()
+            .setFooter({
+                text: `Aktualizováno: ${new Date().toLocaleString('cs-CZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' })}`
+            });
+    
+        const dutyChannel = await client.channels.fetch(dutyChannelId);
+        const dutyMessage = await dutyChannel.messages.fetch(dutyMessageId);
+        await dutyMessage.edit({ embeds: [updatedEmbed] });
     }
-});
-
-// Přihlášení bota
-client.login(token);
+    
